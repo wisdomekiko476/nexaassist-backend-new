@@ -9,12 +9,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Test route
+const hireRequestSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  service: { type: String, required: true },
+  message: { type: String, required: true }
+});
+
+const HireRequest = mongoose.model("HireRequest", hireRequestSchema);
+
 app.get("/", (req, res) => {
   res.send("NexaAssist backend is working!");
 });
 
-// Assistants route
 app.get("/assistants", (req, res) => {
   res.json([
     { name: "Alex", service: "Research", price: "$5/task" },
@@ -26,72 +33,42 @@ app.get("/assistants", (req, res) => {
   ]);
 });
 
-// Hire request database structure
-const hireRequestSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: true
-    },
-    service: {
-      type: String,
-      required: true
-    },
-    message: {
-      type: String,
-      required: true
-    }
-  },
-  {
-    timestamps: true
-  }
-);
-
-const HireRequest = mongoose.model("HireRequest", hireRequestSchema);
-
-// Hire request route
 app.post("/hire", async (req, res) => {
   try {
     const { name, email, service, message } = req.body;
 
-    const newHireRequest = new HireRequest({
+    const hireRequest = new HireRequest({
       name,
       email,
       service,
       message
     });
 
-    await newHireRequest.save();
+    await hireRequest.save();
 
-    res.json({
+    res.status(201).json({
       message: "Hire request saved successfully!"
     });
   } catch (error) {
-    console.error("Hire request error:", error);
+    console.log("Hire request error:", error.message);
 
     res.status(500).json({
-      message: "Could not save hire request."
+      message: "Failed to save hire request."
     });
   }
 });
 
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000,
-    family: 4
-  })
-  .then(() => {
-    console.log("MongoDB connected!");
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 30000,
+  family: 4
+})
+.then(() => {
+  console.log("MongoDB connected!");
 
-    app.listen(3000, () => {
-      console.log("NexaAssist backend running on port 3000");
-    });
-  })
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
+  app.listen(process.env.PORT || 3000, () => {
+    console.log("NexaAssist backend running on port 3000");
   });
+})
+.catch((error) => {
+  console.log("MongoDB connection error:", error.message);
+});
