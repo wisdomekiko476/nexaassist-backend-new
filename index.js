@@ -3,11 +3,17 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const crypto = require("crypto");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+
+// ===============================
+// HIRE REQUEST
+// ===============================
 
 const hireRequestSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -18,9 +24,33 @@ const hireRequestSchema = new mongoose.Schema({
 
 const HireRequest = mongoose.model("HireRequest", hireRequestSchema);
 
+
+// ===============================
+// USER ACCOUNT
+// ===============================
+
+const userSchema = new mongoose.Schema({
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  role: { type: String, required: true },
+  password: { type: String, required: true }
+});
+
+const User = mongoose.model("User", userSchema);
+
+
+// ===============================
+// HOME
+// ===============================
+
 app.get("/", (req, res) => {
   res.send("NexaAssist backend is working!");
 });
+
+
+// ===============================
+// ASSISTANTS
+// ===============================
 
 app.get("/assistants", (req, res) => {
   res.json([
@@ -32,6 +62,11 @@ app.get("/assistants", (req, res) => {
     { name: "Olivia", service: "Personal Assistance", price: "$6/task" }
   ]);
 });
+
+
+// ===============================
+// HIRE
+// ===============================
 
 app.post("/hire", async (req, res) => {
   try {
@@ -49,6 +84,7 @@ app.post("/hire", async (req, res) => {
     res.status(201).json({
       message: "Hire request saved successfully!"
     });
+
   } catch (error) {
     console.log("Hire request error:", error.message);
 
@@ -58,17 +94,91 @@ app.post("/hire", async (req, res) => {
   }
 });
 
+
+// ===============================
+// SIGN UP
+// ===============================
+
+app.post("/signup", async (req, res) => {
+  try {
+    const { fullName, email, role, password, confirmPassword } = req.body;
+
+    if (!fullName || !email || !role || !password || !confirmPassword) {
+      return res.status(400).json({
+        message: "Please fill in all fields."
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        message: "Passwords do not match."
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters."
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: email.toLowerCase()
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "An account with this email already exists."
+      });
+    }
+
+    const hashedPassword = crypto
+      .createHash("sha256")
+      .update(password)
+      .digest("hex");
+
+    const user = new User({
+      fullName,
+      email: email.toLowerCase(),
+      role,
+      password: hashedPassword
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "Account created successfully!"
+    });
+
+  } catch (error) {
+    console.log("Signup error:", error.message);
+
+    res.status(500).json({
+      message: "Failed to create account."
+    });
+  }
+});
+
+
+// ===============================
+// MONGODB CONNECTION
+// ===============================
+
 mongoose.connect(process.env.MONGODB_URI, {
   serverSelectionTimeoutMS: 30000,
   family: 4
 })
 .then(() => {
+
   console.log("MongoDB connected!");
 
   app.listen(process.env.PORT || 3000, () => {
     console.log("NexaAssist backend running on port 3000");
   });
+
 })
 .catch((error) => {
   console.log("MongoDB connection error:", error.message);
 });
+      
+
+
