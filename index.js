@@ -203,6 +203,49 @@ const AssistantProfile =
 
 
 // ==================================================
+// APPLICATION
+// ==================================================
+
+const applicationSchema = new mongoose.Schema(
+  {
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
+      required: true
+    },
+
+    jobTitle: {
+      type: String,
+      required: true
+    },
+
+    assistantName: {
+      type: String,
+      required: true
+    },
+
+    assistantEmail: {
+      type: String,
+      required: true
+    },
+
+    status: {
+      type: String,
+      default: "Pending"
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+const Application = mongoose.model(
+  "Application",
+  applicationSchema
+);
+
+
+// ==================================================
 // HOME
 // ==================================================
 
@@ -886,6 +929,204 @@ app.get(
 
         message:
           "Failed to load assistant profile."
+
+        });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// APPLY FOR JOB
+// ==================================================
+
+app.post(
+  "/applications",
+  async (req, res) => {
+
+    try {
+
+      const {
+        jobId,
+        assistantName,
+        assistantEmail
+      } = req.body;
+
+
+      if (
+        !jobId ||
+        !assistantName ||
+        !assistantEmail
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            "Job and assistant information are required."
+
+        });
+
+      }
+
+
+      const job =
+        await Job.findById(jobId);
+
+
+      if (!job) {
+
+        return res.status(404).json({
+
+          message:
+            "Job not found."
+
+        });
+
+      }
+
+
+      if (job.status !== "Open") {
+
+        return res.status(400).json({
+
+          message:
+            "This job is no longer available."
+
+        });
+
+      }
+
+
+      const existingApplication =
+        await Application.findOne({
+
+          jobId: job._id,
+
+          assistantEmail:
+            assistantEmail.toLowerCase()
+
+        });
+
+
+      if (existingApplication) {
+
+        return res.status(409).json({
+
+          message:
+            "You have already applied for this job."
+
+        });
+
+      }
+
+
+      const application =
+        new Application({
+
+          jobId:
+            job._id,
+
+          jobTitle:
+            job.jobTitle,
+
+          assistantName,
+
+          assistantEmail:
+            assistantEmail.toLowerCase(),
+
+          status:
+            "Pending"
+
+        });
+
+
+      await application.save();
+
+
+      res.status(201).json({
+
+        message:
+          "Application submitted successfully!",
+
+        application
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Application error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to submit application."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET ASSISTANT APPLICATIONS
+// ==================================================
+
+app.get(
+  "/applications",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Assistant email is required."
+
+        });
+
+      }
+
+
+      const applications =
+        await Application.find({
+
+          assistantEmail:
+            email.toLowerCase()
+
+        })
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        applications
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get applications error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load applications."
 
       });
 
