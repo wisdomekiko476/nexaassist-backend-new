@@ -144,11 +144,74 @@ const Job = mongoose.model(
 
 
 // ==================================================
+// ASSISTANT PROFILE
+// ==================================================
+
+const assistantProfileSchema = new mongoose.Schema(
+  {
+    fullName: {
+      type: String,
+      required: true
+    },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true
+    },
+
+    service: {
+      type: String,
+      required: true
+    },
+
+    skills: {
+      type: String,
+      required: true
+    },
+
+    experience: {
+      type: String,
+      required: true
+    },
+
+    rate: {
+      type: String,
+      required: true
+    },
+
+    availability: {
+      type: String,
+      required: true
+    },
+
+    bio: {
+      type: String,
+      required: true
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+const AssistantProfile =
+  mongoose.model(
+    "AssistantProfile",
+    assistantProfileSchema
+  );
+
+
+// ==================================================
 // HOME
 // ==================================================
 
 app.get("/", (req, res) => {
-  res.send("NexaAssist backend is working!");
+
+  res.send(
+    "NexaAssist backend is working!"
+  );
+
 });
 
 
@@ -156,45 +219,35 @@ app.get("/", (req, res) => {
 // ASSISTANTS
 // ==================================================
 
-app.get("/assistants", (req, res) => {
+app.get("/assistants", async (req, res) => {
 
-  res.json([
-    {
-      name: "Alex",
-      service: "Research",
-      price: "$5/task"
-    },
+  try {
 
-    {
-      name: "Sophia",
-      service: "Customer Support",
-      price: "$7/task"
-    },
+    const profiles =
+      await AssistantProfile.find()
+        .sort({
+          createdAt: -1
+        });
 
-    {
-      name: "Daniel",
-      service: "Content",
-      price: "$8/task"
-    },
+    res.status(200).json(
+      profiles
+    );
 
-    {
-      name: "Emma",
-      service: "Administrative",
-      price: "$6/task"
-    },
+  } catch (error) {
 
-    {
-      name: "Liam",
-      service: "Data",
-      price: "$5/task"
-    },
+    console.log(
+      "Get assistants error:",
+      error.message
+    );
 
-    {
-      name: "Olivia",
-      service: "Personal Assistance",
-      price: "$6/task"
-    }
-  ]);
+    res.status(500).json({
+
+      message:
+        "Failed to load assistants."
+
+    });
+
+  }
 
 });
 
@@ -214,17 +267,43 @@ app.post("/hire", async (req, res) => {
       message
     } = req.body;
 
-    const hireRequest = new HireRequest({
-      name,
-      email,
-      service,
-      message
-    });
+
+    if (
+      !name ||
+      !email ||
+      !service ||
+      !message
+    ) {
+
+      return res.status(400).json({
+
+        message:
+          "Please fill in all fields."
+
+      });
+
+    }
+
+
+    const hireRequest =
+      new HireRequest({
+
+        name,
+        email,
+        service,
+        message
+
+      });
+
 
     await hireRequest.save();
 
+
     res.status(201).json({
-      message: "Hire request saved successfully!"
+
+      message:
+        "Hire request saved successfully!"
+
     });
 
   } catch (error) {
@@ -235,7 +314,10 @@ app.post("/hire", async (req, res) => {
     );
 
     res.status(500).json({
-      message: "Failed to save hire request."
+
+      message:
+        "Failed to save hire request."
+
     });
 
   }
@@ -269,7 +351,10 @@ app.post("/signup", async (req, res) => {
     ) {
 
       return res.status(400).json({
-        message: "Please fill in all fields."
+
+        message:
+          "Please fill in all fields."
+
       });
 
     }
@@ -278,7 +363,10 @@ app.post("/signup", async (req, res) => {
     if (password !== confirmPassword) {
 
       return res.status(400).json({
-        message: "Passwords do not match."
+
+        message:
+          "Passwords do not match."
+
       });
 
     }
@@ -287,8 +375,10 @@ app.post("/signup", async (req, res) => {
     if (password.length < 6) {
 
       return res.status(400).json({
+
         message:
           "Password must be at least 6 characters."
+
       });
 
     }
@@ -296,15 +386,20 @@ app.post("/signup", async (req, res) => {
 
     const existingUser =
       await User.findOne({
-        email: email.toLowerCase()
+
+        email:
+          email.toLowerCase()
+
       });
 
 
     if (existingUser) {
 
       return res.status(409).json({
+
         message:
           "An account with this email already exists."
+
       });
 
     }
@@ -317,17 +412,20 @@ app.post("/signup", async (req, res) => {
         .digest("hex");
 
 
-    const user = new User({
+    const user =
+      new User({
 
-      fullName,
+        fullName,
 
-      email: email.toLowerCase(),
+        email:
+          email.toLowerCase(),
 
-      role,
+        role,
 
-      password: hashedPassword
+        password:
+          hashedPassword
 
-    });
+      });
 
 
     await user.save();
@@ -435,7 +533,8 @@ app.post("/login", async (req, res) => {
 
       user: {
 
-        id: user._id,
+        id:
+          user._id,
 
         fullName:
           user.fullName,
@@ -508,23 +607,24 @@ app.post("/jobs", async (req, res) => {
     }
 
 
-    const job = new Job({
+    const job =
+      new Job({
 
-      customerName,
+        customerName,
 
-      customerEmail,
+        customerEmail,
 
-      jobTitle,
+        jobTitle,
 
-      service,
+        service,
 
-      description,
+        description,
 
-      budget,
+        budget,
 
-      duration
+        duration
 
-    });
+      });
 
 
     await job.save();
@@ -611,6 +711,191 @@ app.get("/jobs", async (req, res) => {
 
 
 // ==================================================
+// SAVE / UPDATE ASSISTANT PROFILE
+// ==================================================
+
+app.post(
+  "/assistant-profile",
+  async (req, res) => {
+
+    try {
+
+      const {
+        fullName,
+        email,
+        service,
+        skills,
+        experience,
+        rate,
+        availability,
+        bio
+      } = req.body;
+
+
+      if (
+        !fullName ||
+        !email ||
+        !service ||
+        !skills ||
+        !experience ||
+        !rate ||
+        !availability ||
+        !bio
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            "Please complete all profile fields."
+
+        });
+
+      }
+
+
+      const profile =
+        await AssistantProfile.findOneAndUpdate(
+
+          {
+            email:
+              email.toLowerCase()
+          },
+
+          {
+
+            fullName,
+
+            email:
+              email.toLowerCase(),
+
+            service,
+
+            skills,
+
+            experience,
+
+            rate,
+
+            availability,
+
+            bio
+
+          },
+
+          {
+
+            new: true,
+
+            upsert: true,
+
+            runValidators: true
+
+          }
+
+        );
+
+
+      res.status(200).json({
+
+        message:
+          "Assistant profile saved successfully!",
+
+        profile
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Assistant profile error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to save assistant profile."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET ASSISTANT PROFILE
+// ==================================================
+
+app.get(
+  "/assistant-profile",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Assistant email is required."
+
+        });
+
+      }
+
+
+      const profile =
+        await AssistantProfile.findOne({
+
+          email:
+            email.toLowerCase()
+
+        });
+
+
+      if (!profile) {
+
+        return res.status(404).json({
+
+          message:
+            "Assistant profile not found."
+
+        });
+
+      }
+
+
+      res.status(200).json(
+        profile
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get assistant profile error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load assistant profile."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
 // MONGODB CONNECTION
 // ==================================================
 
@@ -649,10 +934,4 @@ mongoose.connect(
     error.message
   );
 
-});     
-
-    
-      
-    
-
-   
+});
