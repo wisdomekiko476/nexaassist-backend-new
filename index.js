@@ -930,7 +930,7 @@ app.get(
         message:
           "Failed to load assistant profile."
 
-        });
+      });
 
     }
 
@@ -1127,6 +1127,84 @@ app.get(
 
         message:
           "Failed to load applications."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET CUSTOMER APPLICATIONS
+// ==================================================
+
+app.get(
+  "/customer-applications",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Customer email is required."
+
+        });
+
+      }
+
+
+      const jobs =
+        await Job.find({
+
+          customerEmail:
+            email.toLowerCase()
+
+        });
+
+
+      const jobIds =
+        jobs.map(
+          job => job._id
+        );
+
+
+      const applications =
+        await Application.find({
+
+          jobId: {
+            $in: jobIds
+          }
+
+        })
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        applications
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get customer applications error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load customer applications."
 
       });
 
