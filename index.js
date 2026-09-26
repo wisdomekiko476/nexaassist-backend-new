@@ -246,6 +246,64 @@ const Application = mongoose.model(
 
 
 // ==================================================
+// HIRE / JOB ASSIGNMENT
+// ==================================================
+
+const hireSchema = new mongoose.Schema(
+  {
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
+      required: true
+    },
+
+    jobTitle: {
+      type: String,
+      required: true
+    },
+
+    customerName: {
+      type: String,
+      required: true
+    },
+
+    customerEmail: {
+      type: String,
+      required: true
+    },
+
+    assistantName: {
+      type: String,
+      required: true
+    },
+
+    assistantEmail: {
+      type: String,
+      required: true
+    },
+
+    budget: {
+      type: String,
+      required: true
+    },
+
+    status: {
+      type: String,
+      default: "Hired"
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+const Hire = mongoose.model(
+  "Hire",
+  hireSchema
+);
+
+
+// ==================================================
 // HOME
 // ==================================================
 
@@ -296,7 +354,7 @@ app.get("/assistants", async (req, res) => {
 
 
 // ==================================================
-// HIRE
+// OLD HIRE REQUEST
 // ==================================================
 
 app.post("/hire", async (req, res) => {
@@ -1205,6 +1263,362 @@ app.get(
 
         message:
           "Failed to load customer applications."
+
+      });
+
+  }
+
+});
+
+
+// ==================================================
+// HIRE ASSISTANT
+// ==================================================
+
+app.post(
+  "/hire-assistant",
+  async (req, res) => {
+
+    try {
+
+      const {
+        jobId,
+        applicationId,
+        customerEmail
+      } = req.body;
+
+
+      if (
+        !jobId ||
+        !applicationId ||
+        !customerEmail
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            "Job, application and customer information are required."
+
+        });
+
+      }
+
+
+      // Find the customer's job
+
+      const job =
+        await Job.findOne({
+
+          _id: jobId,
+
+          customerEmail:
+            customerEmail.toLowerCase()
+
+        });
+
+
+      if (!job) {
+
+        return res.status(404).json({
+
+          message:
+            "Job not found or you are not the owner of this job."
+
+        });
+
+      }
+
+
+      if (job.status !== "Open") {
+
+        return res.status(400).json({
+
+          message:
+            "This job has already been assigned."
+
+        });
+
+      }
+
+
+      // Find the application
+
+      const application =
+        await Application.findOne({
+
+          _id: applicationId,
+
+          jobId: job._id
+
+        });
+
+
+      if (!application) {
+
+        return res.status(404).json({
+
+          message:
+            "Application not found."
+
+        });
+
+      }
+
+
+      if (application.status !== "Pending") {
+
+        return res.status(400).json({
+
+          message:
+            "This application has already been processed."
+
+        });
+
+      }
+
+
+      // Make sure there isn't already a hire
+
+      const existingHire =
+        await Hire.findOne({
+
+          jobId: job._id
+
+        });
+
+
+      if (existingHire) {
+
+        return res.status(409).json({
+
+          message:
+            "An assistant has already been hired for this job."
+
+        });
+
+      }
+
+
+      // Create hire record
+
+      const hire =
+        new Hire({
+
+          jobId:
+            job._id,
+
+          jobTitle:
+            job.jobTitle,
+
+          customerName:
+            job.customerName,
+
+          customerEmail:
+            job.customerEmail,
+
+          assistantName:
+            application.assistantName,
+
+          assistantEmail:
+            application.assistantEmail,
+
+          budget:
+            job.budget,
+
+          status:
+            "Hired"
+
+        });
+
+
+      await hire.save();
+
+
+      // Update selected application
+
+      application.status =
+        "Accepted";
+
+      await application.save();
+
+
+      // Close the job
+
+      job.status =
+        "Assigned";
+
+      await job.save();
+
+
+      // Reject other pending applications
+
+      await Application.updateMany(
+
+        {
+          jobId: job._id,
+
+          _id: {
+            $ne: application._id
+          },
+
+          status:
+            "Pending"
+        },
+
+        {
+          $set: {
+            status:
+              "Rejected"
+          }
+        }
+
+      );
+
+
+      res.status(200).json({
+
+        message:
+          "Assistant hired successfully!",
+
+        hire
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Hire assistant error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to hire assistant."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET CUSTOMER HIRES
+// ==================================================
+
+app.get(
+  "/customer-hires",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Customer email is required."
+
+        });
+
+      }
+
+
+      const hires =
+        await Hire.find({
+
+          customerEmail:
+            email.toLowerCase()
+
+        })
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        hires
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get customer hires error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load customer hires."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET ASSISTANT HIRES
+// ==================================================
+
+app.get(
+  "/assistant-hires",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Assistant email is required."
+
+        });
+
+      }
+
+
+      const hires =
+        await Hire.find({
+
+          assistantEmail:
+            email.toLowerCase()
+
+        })
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        hires
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get assistant hires error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load assistant hires."
 
       });
 
