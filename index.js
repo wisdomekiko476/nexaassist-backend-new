@@ -1626,7 +1626,264 @@ app.get(
 
   }
 );
+// ==================================================
+// MESSAGES
+// ==================================================
 
+const messageSchema = new mongoose.Schema(
+  {
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
+      required: true
+    },
+
+    senderName: {
+      type: String,
+      required: true
+    },
+
+    senderEmail: {
+      type: String,
+      required: true
+    },
+
+    receiverName: {
+      type: String,
+      required: true
+    },
+
+    receiverEmail: {
+      type: String,
+      required: true
+    },
+
+    message: {
+      type: String,
+      required: true
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+const Message = mongoose.model(
+  "Message",
+  messageSchema
+);
+
+
+// ==================================================
+// SEND MESSAGE
+// ==================================================
+
+app.post(
+  "/messages",
+  async (req, res) => {
+
+    try {
+
+      const {
+        jobId,
+        senderName,
+        senderEmail,
+        receiverName,
+        receiverEmail,
+        message
+      } = req.body;
+
+      if (
+        !jobId ||
+        !senderName ||
+        !senderEmail ||
+        !receiverName ||
+        !receiverEmail ||
+        !message
+      ) {
+
+        return res.status(400).json({
+          message:
+            "All message fields are required."
+        });
+
+      }
+
+      const job =
+        await Job.findById(jobId);
+
+      if (!job) {
+
+        return res.status(404).json({
+          message:
+            "Job not found."
+        });
+
+      }
+
+      const hire =
+        await Hire.findOne({
+          jobId: job._id,
+          $or: [
+            {
+              customerEmail:
+                senderEmail.toLowerCase()
+            },
+            {
+              assistantEmail:
+                senderEmail.toLowerCase()
+            }
+          ]
+        });
+
+      if (!hire) {
+
+        return res.status(403).json({
+          message:
+            "You can only message about a job you have been hired for."
+        });
+
+      }
+
+      const newMessage =
+        new Message({
+
+          jobId: job._id,
+
+          senderName,
+
+          senderEmail:
+            senderEmail.toLowerCase(),
+
+          receiverName,
+
+          receiverEmail:
+            receiverEmail.toLowerCase(),
+
+          message
+
+        });
+
+      await newMessage.save();
+
+      res.status(201).json({
+
+        message:
+          "Message sent successfully!",
+
+        data:
+          newMessage
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Send message error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to send message."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// GET JOB MESSAGES
+// ==================================================
+
+app.get(
+  "/messages",
+  async (req, res) => {
+
+    try {
+
+      const {
+        jobId,
+        email
+      } = req.query;
+
+      if (!jobId || !email) {
+
+        return res.status(400).json({
+
+          message:
+            "Job ID and email are required."
+
+        });
+
+      }
+
+      const hire =
+        await Hire.findOne({
+
+          jobId: jobId,
+
+          $or: [
+            {
+              customerEmail:
+                email.toLowerCase()
+            },
+            {
+              assistantEmail:
+                email.toLowerCase()
+            }
+          ]
+
+        });
+
+      if (!hire) {
+
+        return res.status(403).json({
+
+          message:
+            "You do not have access to these messages."
+
+        });
+
+      }
+
+      const messages =
+        await Message.find({
+
+          jobId: jobId
+
+        }).sort({
+
+          createdAt: 1
+
+        });
+
+      res.status(200).json(
+        messages
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get messages error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load messages."
+
+      });
+
+    }
+
+  }
+);
 
 // ==================================================
 // MONGODB CONNECTION
