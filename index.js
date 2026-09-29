@@ -304,6 +304,112 @@ const Hire = mongoose.model(
 
 
 // ==================================================
+// NOTIFICATIONS
+// ==================================================
+
+const notificationSchema = new mongoose.Schema(
+  {
+    recipientEmail: {
+      type: String,
+      required: true
+    },
+
+    recipientName: {
+      type: String,
+      required: true
+    },
+
+    type: {
+      type: String,
+      required: true
+    },
+
+    title: {
+      type: String,
+      required: true
+    },
+
+    message: {
+      type: String,
+      required: true
+    },
+
+    jobId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Job",
+      default: null
+    },
+
+    read: {
+      type: Boolean,
+      default: false
+    }
+  },
+  {
+    timestamps: true
+  }
+);
+
+const Notification = mongoose.model(
+  "Notification",
+  notificationSchema
+);
+
+
+// ==================================================
+// NOTIFICATION HELPER
+// ==================================================
+
+async function createNotification({
+  recipientEmail,
+  recipientName,
+  type,
+  title,
+  message,
+  jobId = null
+}) {
+
+  try {
+
+    if (!recipientEmail || !recipientName) {
+      return;
+    }
+
+    const notification =
+      new Notification({
+
+        recipientEmail:
+          recipientEmail.toLowerCase(),
+
+        recipientName,
+
+        type,
+
+        title,
+
+        message,
+
+        jobId,
+
+        read: false
+
+      });
+
+    await notification.save();
+
+  } catch (error) {
+
+    console.log(
+      "Notification error:",
+      error.message
+    );
+
+  }
+
+}
+
+
+// ==================================================
 // HOME
 // ==================================================
 
@@ -1103,6 +1209,31 @@ app.post(
       await application.save();
 
 
+      // Notification for customer
+
+      await createNotification({
+
+        recipientEmail:
+          job.customerEmail,
+
+        recipientName:
+          job.customerName,
+
+        type:
+          "application",
+
+        title:
+          "New Job Application",
+
+        message:
+          `${assistantName} applied for your job: ${job.jobTitle}`,
+
+        jobId:
+          job._id
+
+      });
+
+
       res.status(201).json({
 
         message:
@@ -1266,9 +1397,10 @@ app.get(
 
       });
 
-  }
+    }
 
-});
+  }
+);
 
 
 // ==================================================
@@ -1463,6 +1595,7 @@ app.post(
 
           status:
             "Pending"
+
         },
 
         {
@@ -1473,6 +1606,31 @@ app.post(
         }
 
       );
+
+
+      // Notification for assistant
+
+      await createNotification({
+
+        recipientEmail:
+          application.assistantEmail,
+
+        recipientName:
+          application.assistantName,
+
+        type:
+          "hire",
+
+        title:
+          "You Have Been Hired!",
+
+        message:
+          `You have been hired for the job: ${job.jobTitle}`,
+
+        jobId:
+          job._id
+
+      });
 
 
       res.status(200).json({
@@ -1626,6 +1784,133 @@ app.get(
 
   }
 );
+
+
+// ==================================================
+// NOTIFICATIONS - GET
+// ==================================================
+
+app.get(
+  "/notifications",
+  async (req, res) => {
+
+    try {
+
+      const email =
+        req.query.email;
+
+
+      if (!email) {
+
+        return res.status(400).json({
+
+          message:
+            "Email is required."
+
+        });
+
+      }
+
+
+      const notifications =
+        await Notification.find({
+
+          recipientEmail:
+            email.toLowerCase()
+
+        })
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        notifications
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Get notifications error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load notifications."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// NOTIFICATIONS - MARK AS READ
+// ==================================================
+
+app.patch(
+  "/notifications/:id/read",
+  async (req, res) => {
+
+    try {
+
+      const notification =
+        await Notification.findById(
+          req.params.id
+        );
+
+
+      if (!notification) {
+
+        return res.status(404).json({
+
+          message:
+            "Notification not found."
+
+        });
+
+      }
+
+
+      notification.read =
+        true;
+
+      await notification.save();
+
+
+      res.status(200).json({
+
+        message:
+          "Notification marked as read.",
+
+        notification
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Mark notification error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to update notification."
+
+      });
+
+    }
+
+  }
+);
+
+
 // ==================================================
 // MESSAGES
 // ==================================================
@@ -1693,6 +1978,7 @@ app.post(
         message
       } = req.body;
 
+
       if (
         !jobId ||
         !senderName ||
@@ -1703,52 +1989,70 @@ app.post(
       ) {
 
         return res.status(400).json({
+
           message:
             "All message fields are required."
+
         });
 
       }
+
 
       const job =
         await Job.findById(jobId);
 
+
       if (!job) {
 
         return res.status(404).json({
+
           message:
             "Job not found."
+
         });
 
       }
 
+
       const hire =
         await Hire.findOne({
+
           jobId: job._id,
+
           $or: [
+
             {
               customerEmail:
                 senderEmail.toLowerCase()
             },
+
             {
               assistantEmail:
                 senderEmail.toLowerCase()
             }
+
           ]
+
         });
+
 
       if (!hire) {
 
         return res.status(403).json({
+
           message:
             "You can only message about a job you have been hired for."
+
         });
 
       }
 
+
       const newMessage =
         new Message({
 
-          jobId: job._id,
+          jobId:
+            job._id,
 
           senderName,
 
@@ -1764,7 +2068,61 @@ app.post(
 
         });
 
+
       await newMessage.save();
+
+
+      // Determine the real receiver from the hire record
+
+      let notificationEmail;
+      let notificationName;
+
+      if (
+        hire.customerEmail.toLowerCase() ===
+        senderEmail.toLowerCase()
+      ) {
+
+        notificationEmail =
+          hire.assistantEmail;
+
+        notificationName =
+          hire.assistantName;
+
+      } else {
+
+        notificationEmail =
+          hire.customerEmail;
+
+        notificationName =
+          hire.customerName;
+
+      }
+
+
+      // Notification for new message
+
+      await createNotification({
+
+        recipientEmail:
+          notificationEmail,
+
+        recipientName:
+          notificationName,
+
+        type:
+          "message",
+
+        title:
+          "New Message",
+
+        message:
+          `${senderName} sent you a message about: ${job.jobTitle}`,
+
+        jobId:
+          job._id
+
+      });
+
 
       res.status(201).json({
 
@@ -1811,6 +2169,7 @@ app.get(
         email
       } = req.query;
 
+
       if (!jobId || !email) {
 
         return res.status(400).json({
@@ -1822,23 +2181,28 @@ app.get(
 
       }
 
+
       const hire =
         await Hire.findOne({
 
           jobId: jobId,
 
           $or: [
+
             {
               customerEmail:
                 email.toLowerCase()
             },
+
             {
               assistantEmail:
                 email.toLowerCase()
             }
+
           ]
 
         });
+
 
       if (!hire) {
 
@@ -1851,16 +2215,20 @@ app.get(
 
       }
 
+
       const messages =
         await Message.find({
 
-          jobId: jobId
+          jobId:
+            jobId
 
         }).sort({
 
-          createdAt: 1
+          createdAt:
+            1
 
         });
+
 
       res.status(200).json(
         messages
@@ -1884,6 +2252,7 @@ app.get(
 
   }
 );
+
 
 // ==================================================
 // MONGODB CONNECTION
