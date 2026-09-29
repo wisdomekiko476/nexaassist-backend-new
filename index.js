@@ -1209,8 +1209,6 @@ app.post(
       await application.save();
 
 
-      // Notification for customer
-
       await createNotification({
 
         recipientEmail:
@@ -1436,8 +1434,6 @@ app.post(
       }
 
 
-      // Find the customer's job
-
       const job =
         await Job.findOne({
 
@@ -1473,8 +1469,6 @@ app.post(
       }
 
 
-      // Find the application
-
       const application =
         await Application.findOne({
 
@@ -1509,8 +1503,6 @@ app.post(
       }
 
 
-      // Make sure there isn't already a hire
-
       const existingHire =
         await Hire.findOne({
 
@@ -1530,8 +1522,6 @@ app.post(
 
       }
 
-
-      // Create hire record
 
       const hire =
         new Hire({
@@ -1566,23 +1556,17 @@ app.post(
       await hire.save();
 
 
-      // Update selected application
-
       application.status =
         "Accepted";
 
       await application.save();
 
 
-      // Close the job
-
       job.status =
         "Assigned";
 
       await job.save();
 
-
-      // Reject other pending applications
 
       await Application.updateMany(
 
@@ -1607,8 +1591,6 @@ app.post(
 
       );
 
-
-      // Notification for assistant
 
       await createNotification({
 
@@ -2072,8 +2054,6 @@ app.post(
       await newMessage.save();
 
 
-      // Determine the real receiver from the hire record
-
       let notificationEmail;
       let notificationName;
 
@@ -2098,8 +2078,6 @@ app.post(
 
       }
 
-
-      // Notification for new message
 
       await createNotification({
 
@@ -2245,6 +2223,400 @@ app.get(
 
         message:
           "Failed to load messages."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// ADMIN ROUTES
+// ==================================================
+
+app.get(
+  "/admin/users",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const users =
+        await User.find(
+          {},
+          {
+            password: 0
+          }
+        )
+        .sort({
+          createdAt: -1
+        });
+
+
+      res.status(200).json(
+        users
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Admin users error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load users."
+
+      });
+
+    }
+
+  }
+);
+
+
+app.get(
+  "/admin/assistants",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const assistants =
+        await AssistantProfile.find()
+          .sort({
+            createdAt: -1
+          });
+
+
+      res.status(200).json(
+        assistants
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Admin assistants error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load assistants."
+
+      });
+
+    }
+
+  }
+);
+
+
+app.get(
+  "/admin/jobs",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const jobs =
+        await Job.find()
+          .sort({
+            createdAt: -1
+          });
+
+
+      res.status(200).json(
+        jobs
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Admin jobs error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load jobs."
+
+      });
+
+    }
+
+  }
+);
+
+
+app.get(
+  "/admin/applications",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const applications =
+        await Application.find()
+          .sort({
+            createdAt: -1
+          });
+
+
+      res.status(200).json(
+        applications
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Admin applications error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load applications."
+
+      });
+
+    }
+
+  }
+);
+
+
+app.get(
+  "/admin/hires",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const hires =
+        await Hire.find()
+          .sort({
+            createdAt: -1
+          });
+
+
+      res.status(200).json(
+        hires
+      );
+
+    } catch (error) {
+
+      console.log(
+        "Admin hires error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to load hires."
 
       });
 
