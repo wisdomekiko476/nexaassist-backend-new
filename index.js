@@ -188,6 +188,11 @@ const assistantProfileSchema = new mongoose.Schema(
     bio: {
       type: String,
       required: true
+    },
+
+    verified: {
+      type: Boolean,
+      default: false
     }
   },
   {
@@ -960,6 +965,13 @@ app.post(
       }
 
 
+      const existingProfile =
+        await AssistantProfile.findOne({
+          email:
+            email.toLowerCase()
+        });
+
+
       const profile =
         await AssistantProfile.findOneAndUpdate(
 
@@ -1000,6 +1012,12 @@ app.post(
           }
 
         );
+
+
+      if (!existingProfile) {
+        profile.verified = false;
+        await profile.save();
+      }
 
 
       res.status(200).json({
@@ -2236,6 +2254,11 @@ app.get(
 // ADMIN ROUTES
 // ==================================================
 
+
+// ==================================================
+// ADMIN USERS
+// ==================================================
+
 app.get(
   "/admin/users",
   async (req, res) => {
@@ -2318,6 +2341,10 @@ app.get(
 );
 
 
+// ==================================================
+// ADMIN ASSISTANTS
+// ==================================================
+
 app.get(
   "/admin/assistants",
   async (req, res) => {
@@ -2394,6 +2421,120 @@ app.get(
   }
 );
 
+
+// ==================================================
+// ADMIN VERIFY / UNVERIFY ASSISTANT
+// ==================================================
+
+app.patch(
+  "/admin/assistants/:id/verify",
+  async (req, res) => {
+
+    try {
+
+      const adminEmail =
+        req.query.email;
+
+
+      if (!adminEmail) {
+
+        return res.status(400).json({
+
+          message:
+            "Admin email is required."
+
+        });
+
+      }
+
+
+      const admin =
+        await User.findOne({
+
+          email:
+            adminEmail.toLowerCase(),
+
+          role:
+            "admin"
+
+        });
+
+
+      if (!admin) {
+
+        return res.status(403).json({
+
+          message:
+            "Admin access denied."
+
+        });
+
+      }
+
+
+      const assistant =
+        await AssistantProfile.findById(
+          req.params.id
+        );
+
+
+      if (!assistant) {
+
+        return res.status(404).json({
+
+          message:
+            "Assistant profile not found."
+
+        });
+
+      }
+
+
+      const verified =
+        req.body.verified === true;
+
+
+      assistant.verified =
+        verified;
+
+
+      await assistant.save();
+
+
+      res.status(200).json({
+
+        message:
+          verified
+            ? "Assistant verified successfully."
+            : "Assistant verification removed.",
+
+        assistant
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        "Admin assistant verification error:",
+        error.message
+      );
+
+      res.status(500).json({
+
+        message:
+          "Failed to update assistant verification."
+
+      });
+
+    }
+
+  }
+);
+
+
+// ==================================================
+// ADMIN JOBS
+// ==================================================
 
 app.get(
   "/admin/jobs",
@@ -2472,6 +2613,10 @@ app.get(
 );
 
 
+// ==================================================
+// ADMIN APPLICATIONS
+// ==================================================
+
 app.get(
   "/admin/applications",
   async (req, res) => {
@@ -2548,6 +2693,10 @@ app.get(
   }
 );
 
+
+// ==================================================
+// ADMIN HIRES
+// ==================================================
 
 app.get(
   "/admin/hires",
