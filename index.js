@@ -738,28 +738,31 @@ app.post("/login", async (req, res) => {
     }
 
 
+    /*
+      Return the account information
+      at the top level so the frontend
+      can correctly identify the role.
+    */
+
     res.status(200).json({
 
       message:
         "Login successful!",
 
-      user: {
+      id:
+        user._id,
 
-        id:
-          user._id,
+      fullName:
+        user.fullName,
 
-        fullName:
-          user.fullName,
+      email:
+        user.email,
 
-        email:
-          user.email,
-
-        role:
-          user.role
-
-      }
+      role:
+        user.role
 
     });
+
 
   } catch (error) {
 
